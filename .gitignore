@@ -1,3 +1,4 @@
 .vagrant/
 *.tar.gz
+zabbix_agent_bench
 
