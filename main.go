@@ -45,6 +45,7 @@ func main() {
 	var timeoutMsArg int
 	var staggerMsArg int
 	var timeLimitArg int
+	var iterationLimit int
 	var threadCount int
 	var keyFile string
 	var key string
@@ -52,8 +53,9 @@ func main() {
 	// Configure from command line
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
 	flag.IntVar(&staggerMsArg, "stagger", 300, "stagger the start of each thread by milliseconds")
-	flag.IntVar(&threadCount, "threads", 3, "number of test threads")
+	flag.IntVar(&threadCount, "threads", 1, "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
+	flag.IntVar(&iterationLimit, "limit", 1, "maximum test iterations of each key")
 	flag.StringVar(&keyFile, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
 	flag.Parse()
@@ -62,32 +64,33 @@ func main() {
 	stagger := time.Duration(staggerMsArg) * time.Microsecond
 	timeLimit := time.Duration(timeLimitArg) * time.Second
 
+	// Create a list of keys for processing
 	keys := []*AgentCheck{}
-
 	if key != "" {
 		keys = append(keys, &AgentCheck{key, false, false, []*AgentCheck{}})
 	}
 
-	// parse key file
-	var commentPattern = regexp.MustCompile(`^\s*(#.*)?$`)
-	var indentPattern = regexp.MustCompile(`^\s+`)
-
+	// Load item keys from text file
 	if keyFile != "" {
+		var commentPattern = regexp.MustCompile(`^\s*(#.*)?$`)
+		var indentPattern = regexp.MustCompile(`^\s+`)
+
+		// Open key file
 		file, err := os.Open(keyFile)
 		if err != nil {
 			return
 		}
-
 		defer file.Close()
-
-		buf := bufio.NewScanner(file)
 
 		var lastKey *AgentCheck
 		var parentKey *AgentCheck
 
+		// Read one key per line
+		buf := bufio.NewScanner(file)
 		for buf.Scan() {
 			key = buf.Text()
 
+			// Ignore blanks lines and comments
 			if !commentPattern.MatchString(key) {
 				newKey := AgentCheck{key, false, false, []*AgentCheck{}}
 
@@ -148,7 +151,7 @@ func main() {
 
 	// Make sure we have work to do
 	if 0 == len(keys) {
-		fmt.Fprintf(os.Stderr, "No agent item keys or keys file specified\n")
+		fmt.Fprintf(os.Stderr, "No agent item keys specified for testing\n")
 		os.Exit(1)
 	}
 
@@ -167,12 +170,9 @@ func main() {
 			defer wg.Done()
 
 			stop := false
+			iterations := 0
 			for !stop {
 				for _, key := range keys {
-					val, err := Get(host, key.Key, timeout)
-					if err != nil {
-						panic(err)
-					}
 
 					typ := "item"
 					if key.IsPrototype {
@@ -180,13 +180,26 @@ func main() {
 					} else if key.IsDiscoveryRule {
 						typ = "disco"
 					}
-					fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
 
+					// Get the value form Zabbix agent
+					val, err := Get(host, key.Key, timeout)
+					if err != nil {
+						fmt.Printf("[%s] %s: %s\n", typ, key.Key, err.Error())
+					} else {
+						fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
+					}
 					// See if we are out of time
 					if 0 < timeLimit && time.Now().Sub(start) > timeLimit {
 						stop = true
 						break
 					}
+				}
+
+				iterations++
+
+				if 0 < iterationLimit && iterations >= iterationLimit {
+					stop = true
+					break
 				}
 			}
 

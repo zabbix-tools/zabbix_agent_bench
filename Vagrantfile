@@ -41,7 +41,7 @@ export GOPATH=\\$HOME/gocode
 export PATH=\\$PATH:\\$HOME/gocode/bin
 EOL
 
-chown vagrant.vagrant /home/vagrant/gocode
+chown -R vagrant.vagrant /home/vagrant/gocode
 
 go version
 
