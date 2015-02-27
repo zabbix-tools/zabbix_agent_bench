@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/mitchellh/colorstring"
 	"os"
 	"regexp"
 	"strings"
@@ -184,7 +185,7 @@ func main() {
 					// Get the value form Zabbix agent
 					val, err := Get(host, key.Key, timeout)
 					if err != nil {
-						fmt.Printf("[%s] %s: %s\n", typ, key.Key, err.Error())
+						fmt.Printf(colorstring.Color("[red][%s][default] %s: %s\n"), typ, key.Key, err.Error())
 					} else {
 						fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
 					}
