@@ -49,6 +49,6 @@ echo -e "${BULLET} All done."
 script
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "chef/centos-7.0"
+  config.vm.box = "doe/centos-7.0"
   config.vm.provision "shell", inline: script
 end
