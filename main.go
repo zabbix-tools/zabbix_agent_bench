@@ -50,6 +50,7 @@ func main() {
 	var threadCount int
 	var keyFile string
 	var key string
+	var verbose bool
 
 	// Configure from command line
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
@@ -59,6 +60,7 @@ func main() {
 	flag.IntVar(&iterationLimit, "limit", 1, "maximum test iterations of each key")
 	flag.StringVar(&keyFile, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
+	flag.BoolVar(&verbose, "verbose", false, "print more output")
 	flag.Parse()
 
 	timeout := time.Duration(timeoutMsArg) * time.Millisecond
@@ -187,7 +189,9 @@ func main() {
 					if err != nil {
 						fmt.Printf(colorstring.Color("[red][%s][default] %s: %s\n"), typ, key.Key, err.Error())
 					} else {
-						fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
+						if verbose {
+							fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
+						}
 					}
 					// See if we are out of time
 					if 0 < timeLimit && time.Now().Sub(start) > timeLimit {
