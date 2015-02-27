@@ -42,17 +42,25 @@ type DiscoveryData struct {
 func main() {
 	var host string
 	//var port int
-	var timeoutMs int
+	var timeoutMsArg int
+	var staggerMsArg int
+	var timeLimitArg int
 	var threadCount int
 	var keyFile string
 	var key string
 
 	// Configure from command line
-	flag.IntVar(&timeoutMs, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
+	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
+	flag.IntVar(&staggerMsArg, "stagger", 300, "stagger the start of each thread by milliseconds")
 	flag.IntVar(&threadCount, "threads", 3, "number of test threads")
+	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
 	flag.StringVar(&keyFile, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
 	flag.Parse()
+
+	timeout := time.Duration(timeoutMsArg) * time.Millisecond
+	stagger := time.Duration(staggerMsArg) * time.Microsecond
+	timeLimit := time.Duration(timeLimitArg) * time.Second
 
 	keys := []*AgentCheck{}
 
@@ -102,7 +110,7 @@ func main() {
 				} else {
 					// Have we finished processing a discovery rule and prototypes?
 					if parentKey != nil {
-						val, err := Get(host, parentKey.Key, time.Duration(timeoutMs)*time.Millisecond)
+						val, err := Get(host, parentKey.Key, timeout)
 						if err != nil {
 							panic(err)
 						}
@@ -138,20 +146,30 @@ func main() {
 		}
 	}
 
+	// Make sure we have work to do
+	if 0 == len(keys) {
+		fmt.Fprintf(os.Stderr, "No agent item keys or keys file specified\n")
+		os.Exit(1)
+	}
+
 	// Bootstrap threads
 	var wg sync.WaitGroup
 	wg.Add(threadCount)
 
 	// go to work
+	start := time.Now()
 	for i := 0; i < threadCount; i++ {
-		fmt.Printf("Starting thread %d...\n", i)
+		time.Sleep(stagger)
+
+		fmt.Printf("Starting thread %d...\n", i+1)
 
 		go func(i int) {
 			defer wg.Done()
 
-			for {
+			stop := false
+			for !stop {
 				for _, key := range keys {
-					val, err := Get(host, key.Key, time.Duration(timeoutMs)*time.Millisecond)
+					val, err := Get(host, key.Key, timeout)
 					if err != nil {
 						panic(err)
 					}
@@ -163,11 +181,17 @@ func main() {
 						typ = "disco"
 					}
 					fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
+
+					// See if we are out of time
+					if 0 < timeLimit && time.Now().Sub(start) > timeLimit {
+						stop = true
+						break
+					}
 				}
 			}
 
 			fmt.Printf("Finished thread %d\n", i)
-		}(i)
+		}(i + 1)
 	}
 
 	wg.Wait()
