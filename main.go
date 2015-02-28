@@ -55,9 +55,9 @@ func main() {
 	// Configure from command line
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
 	flag.IntVar(&staggerMsArg, "stagger", 300, "stagger the start of each thread by milliseconds")
-	flag.IntVar(&threadCount, "threads", 1, "number of test threads")
+	flag.IntVar(&threadCount, "threads", 3, "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
-	flag.IntVar(&iterationLimit, "limit", 1, "maximum test iterations of each key")
+	flag.IntVar(&iterationLimit, "limit", 0, "maximum test iterations of each key")
 	flag.StringVar(&keyFile, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
 	flag.BoolVar(&verbose, "verbose", false, "print more output")
@@ -134,10 +134,14 @@ func main() {
 							for _, proto := range parentKey.Prototypes {
 
 								// Expand macros
+								newKey := proto.Key
 								for macro, val := range instance {
-									newKey := strings.Replace(proto.Key, macro, val, -1)
-									keys = append(keys, &AgentCheck{newKey, false, true, []*AgentCheck{}})
+									newKey = strings.Replace(newKey, macro, val, -1)
+
 								}
+
+								// Item discovered item
+								keys = append(keys, &AgentCheck{newKey, false, true, []*AgentCheck{}})
 							}
 						}
 					}
