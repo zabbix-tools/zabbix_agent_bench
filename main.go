@@ -42,7 +42,7 @@ type DiscoveryData struct {
 
 func main() {
 	var host string
-	//var port int
+	var port int
 	var timeoutMsArg int
 	var staggerMsArg int
 	var timeLimitArg int
@@ -53,6 +53,8 @@ func main() {
 	var verbose bool
 
 	// Configure from command line
+	flag.StringVar(&host, "host", "localhost", "remote Zabbix agent host")
+	flag.IntVar(&port, "port", 10050, "remote Zabbix agent TCP port")
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
 	flag.IntVar(&staggerMsArg, "stagger", 300, "stagger the start of each thread by milliseconds")
 	flag.IntVar(&threadCount, "threads", 3, "number of test threads")
