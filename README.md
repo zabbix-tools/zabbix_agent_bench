@@ -1,7 +1,49 @@
 # Zabbix Agent Bench
 
-A concurrent Zabbix agent benchmarking tool with support for custom keys and
+A multithreaded Zabbix agent benchmarking tool with support for custom keys and
 discovery item prototypes.
+
+This tool is useful for developing custom Zabbix agent items and quickly
+identifying memory or file handle leaks, concurrency problems such as race
+conditions and other performance issues.
+
+    $ zabbix_agent_bench --help
+    Usage of ./zabbix_agent_bench:
+      -key="": benchmark a single agent item key
+      -keys="": read keys from file path
+      -limit=0: maximum test iterations of each key
+      -stagger=300: stagger the start of each thread by milliseconds
+      -threads=3: number of test threads
+      -timelimit=0: time limit in seconds
+      -timeout=3000: timeout in milliseconds for each Zabbix Get request
+      -verbose=false: print more output
+
+## Key files
+
+Create a list of agent item keys to test by providing a text file with one key
+per line to the `-keys` argument. Whitespace and lines prefixed with `#` are
+ignored as comments.
+
+For discovery items, you can specify item prototypes immediately following a
+discovery item, simply by prepending the key with a tab or space.
+
+E.g.
+
+    vfs.fs.discovery
+        vfs.fs.size[{#FSNAME},total]
+        vfs.fs.size[{#FSNAME},free]
+        vfs.fs.size[{#FSNAME},used]
+        vfs.fs.size[{#FSNAME},pfree]
+        vfs.fs.size[{#FSNAME},pused]
+
+
+## Build
+
+Once you have a working [installation of Go](https://golang.org/doc/install),
+simply run:
+
+    go get github.com/cavaliercoder/zabbix_agent_bench
+
 
 ## License
 
