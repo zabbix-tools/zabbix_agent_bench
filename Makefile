@@ -9,7 +9,7 @@ FPM = fpm
 all: $(APP)
 
 $(APP):
-	$(GO) $(GLFAGS) build
+	$(GO) $(GFLAGS) build
 
 clean:
 	$(RM) $(APP)

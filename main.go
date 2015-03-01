@@ -66,7 +66,7 @@ func main() {
 	flag.Parse()
 
 	timeout := time.Duration(timeoutMsArg) * time.Millisecond
-	stagger := time.Duration(staggerMsArg) * time.Microsecond
+	stagger := time.Duration(staggerMsArg) * time.Millisecond
 	timeLimit := time.Duration(timeLimitArg) * time.Second
 
 	// Create a list of keys for processing
