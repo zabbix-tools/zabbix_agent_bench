@@ -1,4 +1,5 @@
 .vagrant/
 *.tar.gz
+*.rpm
+*.deb
 zabbix_agent_bench
-

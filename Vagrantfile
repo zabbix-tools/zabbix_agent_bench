@@ -13,13 +13,6 @@ ZBX_VER="${ZBX_MAJ}.${ZBX_MIN}.${ZBX_PATCH}-${ZBX_REL}"
 
 cd /vagrant
 
-# Install Zabbix
-echo -e "${BULLET} Installing Zabbix..."
-rpm -qa | grep zabbix-release >/dev/null || yum localinstall -y --nogpgcheck http://repo.zabbix.com/zabbix/${ZBX_MAJ}.${ZBX_MIN}/rhel/7/x86_64/zabbix-release-${ZBX_MAJ}.${ZBX_MIN}-1.el7.noarch.rpm
-yum install -y --nogpgcheck zabbix-agent zabbix-get
-chkconfig zabbix-agent on || systemctl enable zabbix-agent
-service zabbix-agent start || systemctl start zabbix-agent
-
 # Install Go
 echo -e "${BULLET} Installing Go..."
 yum install -y --nogpgcheck git mercurial
@@ -44,6 +37,18 @@ EOL
 chown -R vagrant.vagrant /home/vagrant/gocode
 
 go version
+
+# Install Zabbix
+echo -e "${BULLET} Installing Zabbix..."
+rpm -qa | grep zabbix-release >/dev/null || yum localinstall -y --nogpgcheck http://repo.zabbix.com/zabbix/${ZBX_MAJ}.${ZBX_MIN}/rhel/7/x86_64/zabbix-release-${ZBX_MAJ}.${ZBX_MIN}-1.el7.noarch.rpm
+yum install -y --nogpgcheck zabbix-agent zabbix-get
+chkconfig zabbix-agent on || systemctl enable zabbix-agent
+service zabbix-agent start || systemctl start zabbix-agent
+
+# Install FPM
+echo -e "${BULLET} Installing packaging tools..."
+yum install -y --nogpgcheck gcc ruby-devel ruby-gems rpm-build
+gem install fpm
 
 echo -e "${BULLET} All done."
 script
