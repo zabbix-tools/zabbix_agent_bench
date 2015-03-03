@@ -8,8 +8,8 @@ FPM = fpm
 
 all: $(APP)
 
-$(APP):
-	$(GO) $(GFLAGS) build
+$(APP): main.go zabbix_get.go
+	$(GO) build $(GFLAGS)
 
 clean:
 	$(RM) $(APP)
