@@ -12,7 +12,7 @@ $(APP): main.go zabbix_get.go
 	$(GO) build $(GFLAGS)
 
 clean:
-	$(RM) $(APP)
+	$(GO) clean
 
 rpm: zabbix_agent_bench
 	$(FPM) -f -s dir -t rpm -n $(APP) -v $(APPVER) $(APP)=/usr/bin/$(APP)

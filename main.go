@@ -25,7 +25,8 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
-	//"runtime"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -39,6 +40,21 @@ type AgentCheck struct {
 
 type DiscoveryData struct {
 	Data []map[string]string
+}
+
+type KeyTally map[string]struct {
+	Success      int64
+	NotSupported int64
+	Error        int64
+}
+
+type ThreadStats struct {
+	Duration          time.Duration
+	Iterations        int64
+	TotalValues       int64
+	UnsupportedValues int64
+	ErrorCount        int64
+	Keys              KeyTally
 }
 
 func main() {
@@ -57,7 +73,7 @@ func main() {
 	flag.StringVar(&host, "host", "localhost", "remote Zabbix agent host")
 	flag.IntVar(&port, "port", 10050, "remote Zabbix agent TCP port")
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
-	flag.IntVar(&staggerMsArg, "stagger", 300, "stagger the start of each thread by milliseconds")
+	flag.IntVar(&staggerMsArg, "stagger", 0, "stagger the start of each thread by milliseconds")
 	flag.IntVar(&threadCount, "threads", 3, "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
 	flag.IntVar(&iterationLimit, "limit", 0, "maximum test iterations of each key")
@@ -69,6 +85,9 @@ func main() {
 	timeout := time.Duration(timeoutMsArg) * time.Millisecond
 	stagger := time.Duration(staggerMsArg) * time.Millisecond
 	timeLimit := time.Duration(timeLimitArg) * time.Second
+
+	// Bind threads to each core
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Create a list of keys for processing
 	keys := []*AgentCheck{}
@@ -164,6 +183,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Find longest key name
+	longestKeyName := 0
+	for _, key := range keys {
+		if len(key.Key) > longestKeyName {
+			longestKeyName = len(key.Key)
+		}
+	}
+
 	// Capture Ctrl+C SIGINTs
 	stop := false
 	c := make(chan os.Signal, 1)
@@ -183,19 +210,31 @@ func main() {
 		}
 	}()
 
+	// Start operation timer
+	if 0 < timeLimit {
+		timer := time.NewTimer(timeLimit)
+		go func() {
+			<-timer.C
+			stop = true
+		}()
+	}
+
 	// go to work
-	//runtime.GOMAXPROCS(runtime.NumCPU()) // <- A/B test this
+	fmt.Printf("Testing %d keys across %d threads...\n", len(keys), threadCount)
 	start := time.Now()
-	stats := make(chan int)
+	statsChan := make(chan ThreadStats)
 	for i := 0; !stop && i < threadCount; i++ {
+
+		// Stagger thread start
 		time.Sleep(stagger)
 
-		fmt.Printf("Starting thread %d...\n", i+1)
+		// fmt.Printf("Starting thread %d...\n", i+1)
+		go func(i int, stats chan ThreadStats) {
+			threadStats := ThreadStats{}
+			threadStats.Keys = make(KeyTally)
 
-		go func(i int, stats chan int) {
-			iterations := 0
-			values := 0
 			for !stop {
+				// Iterate over each key in the list
 				for _, key := range keys {
 					if stop {
 						break
@@ -208,44 +247,93 @@ func main() {
 						typ = "disco"
 					}
 
-					// Get the value form Zabbix agent
+					keyStats := threadStats.Keys[key.Key]
+
+					// Get the value from Zabbix agent
 					val, err := Get(host, key.Key, timeout)
 					if err != nil {
-						fmt.Printf(colorstring.Color("[red][%s][default] %s: %s\n"), typ, key.Key, err.Error())
+						// Transport error getting valuw
+						// colorstring.Fprintf(os.StdErr, "[red][%s][default] %s: %s\n"), typ, key.Key, err.Error())
+						threadStats.ErrorCount++
+						keyStats.Error++
 					} else {
+						// Print response
 						if verbose {
 							fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
 						}
+
+						// Tally results
+						threadStats.TotalValues++
+						if strings.HasPrefix(val, ErrorMessage) {
+							threadStats.UnsupportedValues++
+							keyStats.NotSupported++
+						} else {
+							keyStats.Success++
+						}
 					}
 
-					values++
-
-					// See if we are out of time
-					if 0 < timeLimit && time.Now().Sub(start) > timeLimit {
-						stop = true
-						break
-					}
+					threadStats.Keys[key.Key] = keyStats
 				}
 
-				iterations++
-				if 0 < iterationLimit && iterations >= iterationLimit {
-					stop = true
+				// Increment key list iteration count
+				threadStats.Iterations++
+				if 0 < iterationLimit && threadStats.Iterations >= int64(iterationLimit) {
+					break
+				}
+
+				if stop {
 					break
 				}
 			}
 
 			// Push stats to collector
-			stats <- values
-		}(i+1, stats)
+			statsChan <- threadStats
+		}(i+1, statsChan)
 	}
 
 	// Gather stats
-	values := 0
+	totals := ThreadStats{}
+	totals.Keys = make(KeyTally)
 	for i := 0; i < threadCount; i++ {
-		values += <-stats
+		threadStats := <-statsChan
+		totals.Iterations += threadStats.Iterations
+		totals.TotalValues += threadStats.TotalValues
+		totals.UnsupportedValues += threadStats.UnsupportedValues
+		totals.ErrorCount += threadStats.ErrorCount
+
+		for key, keyStats := range threadStats.Keys {
+			tKeyStats := totals.Keys[key]
+			tKeyStats.Success += keyStats.Success
+			tKeyStats.NotSupported += keyStats.NotSupported
+			tKeyStats.Error += keyStats.Error
+
+			totals.Keys[key] = tKeyStats
+		}
 	}
 	duration := time.Now().Sub(start)
-	colorstring.Printf("[green]Finished![default] Processed %d values across %d threads in %s (%f NVPS)\n", values, threadCount, duration.String(), (float64(values) / duration.Seconds()))
+
+	// Sort the key list
+	keyNames := []string{}
+	for _, key := range keys {
+		keyNames = append(keyNames, key.Key)
+	}
+	sort.Strings(keyNames)
+
+	// Print results per key
+	for _, key := range keyNames {
+		keyStats := totals.Keys[key]
+		row := fmt.Sprintf("%-*s :\t%s\t%s\t%s\n", longestKeyName, key, hl(keyStats.Success, "green"), hl(keyStats.NotSupported, "yellow"), hl(keyStats.Error, "red"))
+		colorstring.Printf(row)
+	}
+
+	// Print totals
+	fmt.Printf("\n=== Totals ===\n\n")
+	fmt.Printf("Total values processed:\t\t%d\n", totals.TotalValues)
+	fmt.Printf("Total unsupported values:\t%d\n", totals.UnsupportedValues)
+	fmt.Printf("Total transport errors:\t\t%d\n", totals.ErrorCount)
+	fmt.Printf("Total key list iterations:\t%d\n", totals.Iterations)
+
+	colorstring.Printf("\n[green]Finished![default] Processed %d values across %d threads in %s (%f NVPS)\n", totals.TotalValues, threadCount, duration.String(), (float64(totals.TotalValues) / duration.Seconds()))
 
 }
 
@@ -256,5 +344,13 @@ func DoOrDie(err error, v ...interface{}) {
 			colorstring.Fprintf(os.Stderr, "%#v\n", x)
 		}
 		os.Exit(1)
+	}
+}
+
+func hl(val int64, color string) string {
+	if val > 0 {
+		return fmt.Sprintf("[%s]%d[default]", color, val)
+	} else {
+		return fmt.Sprintf("%d", val)
 	}
 }
