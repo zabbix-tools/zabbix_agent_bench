@@ -23,9 +23,10 @@ import (
 	"fmt"
 	"github.com/mitchellh/colorstring"
 	"os"
+	"os/signal"
 	"regexp"
+	//"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -120,13 +121,13 @@ func main() {
 					if parentKey != nil {
 						val, err := Get(host, parentKey.Key, timeout)
 						if err != nil {
-							panic(err)
+							DoOrDie(err)
 						}
 
 						data := DiscoveryData{}
 						err = json.Unmarshal([]byte(val), &data)
 						if err != nil {
-							panic(err)
+							DoOrDie(err, val)
 						}
 
 						// Parse each discovered instance
@@ -139,7 +140,6 @@ func main() {
 								newKey := proto.Key
 								for macro, val := range instance {
 									newKey = strings.Replace(newKey, macro, val, -1)
-
 								}
 
 								// Item discovered item
@@ -164,24 +164,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Bootstrap threads
-	var wg sync.WaitGroup
-	wg.Add(threadCount)
+	// Capture Ctrl+C SIGINTs
+	stop := false
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for {
+			<-c // Wait for signal
+
+			if stop {
+				// Force exit if user sent SIGINT during cleanup
+				fmt.Printf("Aborting...\n")
+				os.Exit(1)
+			} else {
+				fmt.Printf("Caught SIGINT. Cleaning up...\n")
+				stop = true
+			}
+		}
+	}()
 
 	// go to work
+	//runtime.GOMAXPROCS(runtime.NumCPU()) // <- A/B test this
 	start := time.Now()
-	for i := 0; i < threadCount; i++ {
+	stats := make(chan int)
+	for i := 0; !stop && i < threadCount; i++ {
 		time.Sleep(stagger)
 
 		fmt.Printf("Starting thread %d...\n", i+1)
 
-		go func(i int) {
-			defer wg.Done()
-
-			stop := false
+		go func(i int, stats chan int) {
 			iterations := 0
+			values := 0
 			for !stop {
 				for _, key := range keys {
+					if stop {
+						break
+					}
 
 					typ := "item"
 					if key.IsPrototype {
@@ -199,6 +217,9 @@ func main() {
 							fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
 						}
 					}
+
+					values++
+
 					// See if we are out of time
 					if 0 < timeLimit && time.Now().Sub(start) > timeLimit {
 						stop = true
@@ -207,18 +228,33 @@ func main() {
 				}
 
 				iterations++
-
 				if 0 < iterationLimit && iterations >= iterationLimit {
 					stop = true
 					break
 				}
 			}
 
-			fmt.Printf("Finished thread %d\n", i)
-		}(i + 1)
+			// Push stats to collector
+			stats <- values
+		}(i+1, stats)
 	}
 
-	wg.Wait()
+	// Gather stats
+	values := 0
+	for i := 0; i < threadCount; i++ {
+		values += <-stats
+	}
+	duration := time.Now().Sub(start)
+	colorstring.Printf("[green]Finished![default] Processed %d values across %d threads in %s (%f NVPS)\n", values, threadCount, duration.String(), (float64(values) / duration.Seconds()))
 
-	fmt.Printf("Fin.\n")
+}
+
+func DoOrDie(err error, v ...interface{}) {
+	if err != nil {
+		colorstring.Fprintf(os.Stderr, "[red]Error:[default] %s\n", err.Error())
+		for _, x := range v {
+			colorstring.Fprintf(os.Stderr, "%#v\n", x)
+		}
+		os.Exit(1)
+	}
 }
