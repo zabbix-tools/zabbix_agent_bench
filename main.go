@@ -31,6 +31,12 @@ import (
 	"time"
 )
 
+const (
+	APP         = "zabbix_agent_bench"
+	APP_VERSION = "0.1.0"
+	APP_AUTHOR  = "Ryan Armstrong <ryan@cavaliercoder.com>"
+)
+
 type AgentCheck struct {
 	Key             string
 	IsDiscoveryRule bool
@@ -67,9 +73,10 @@ func main() {
 	var threadCount int
 	var keyFile string
 	var key string
-	var verbose bool
+	var verbose, version bool
 
 	// Configure from command line
+	flag.BoolVar(&version, "version", false, "print application version")
 	flag.StringVar(&host, "host", "localhost", "remote Zabbix agent host")
 	flag.IntVar(&port, "port", 10050, "remote Zabbix agent TCP port")
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
@@ -85,6 +92,11 @@ func main() {
 	timeout := time.Duration(timeoutMsArg) * time.Millisecond
 	stagger := time.Duration(staggerMsArg) * time.Millisecond
 	timeLimit := time.Duration(timeLimitArg) * time.Second
+
+	if version {
+		fmt.Printf("%s v%s\n", APP, APP_VERSION)
+		os.Exit(0)
+	}
 
 	// Bind threads to each core
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -334,7 +346,6 @@ func main() {
 	fmt.Printf("Total key list iterations:\t%d\n", totals.Iterations)
 
 	colorstring.Printf("\n[green]Finished![default] Processed %d values across %d threads in %s (%f NVPS)\n", totals.TotalValues, threadCount, duration.String(), (float64(totals.TotalValues) / duration.Seconds()))
-
 }
 
 func DoOrDie(err error, v ...interface{}) {
