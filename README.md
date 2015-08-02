@@ -9,14 +9,18 @@ conditions and other performance issues.
 
     $ zabbix_agent_bench --help
     Usage of ./zabbix_agent_bench:
+      -host="localhost": remote Zabbix agent host
       -key="": benchmark a single agent item key
       -keys="": read keys from file path
       -limit=0: maximum test iterations of each key
-      -stagger=300: stagger the start of each thread by milliseconds
+      -port=10050: remote Zabbix agent TCP port
+      -stagger=0: stagger the start of each thread by milliseconds
       -threads=3: number of test threads
       -timelimit=0: time limit in seconds
       -timeout=3000: timeout in milliseconds for each Zabbix Get request
       -verbose=false: print more output
+      -version=false: print application version
+
 
 ## Key files
 
@@ -37,10 +41,12 @@ E.g.
         vfs.fs.size[{#FSNAME},pused]
 
 
-## Build
+## Installation
 
-Once you have a working [installation of Go](https://golang.org/doc/install),
-simply run:
+Pre-compiled binaries are available on [download on SourceForge](https://sourceforge.net/projects/zabbixagentbench/files/).
+
+Alternatively, you can build the project yourself in Go. Once you have a
+working [installation of Go](https://golang.org/doc/install), simply run:
 
     go get github.com/cavaliercoder/zabbix_agent_bench
 
