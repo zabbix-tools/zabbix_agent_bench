@@ -67,6 +67,7 @@ func main() {
 	var threadCount int
 	var keyFile string
 	var key string
+	var exitErrorCount bool
 	var verbose bool
 
 	// Configure from command line
@@ -76,9 +77,10 @@ func main() {
 	flag.IntVar(&staggerMsArg, "stagger", 0, "stagger the start of each thread by milliseconds")
 	flag.IntVar(&threadCount, "threads", 3, "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
-	flag.IntVar(&iterationLimit, "limit", 0, "maximum test iterations of each key")
+	flag.IntVar(&iterationLimit, "limit", 0, "maximum test iterations of each key per thread")
 	flag.StringVar(&keyFile, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
+	flag.BoolVar(&exitErrorCount, "errorcount", false, "set exit code to the sum of unsupported and failed items")
 	flag.BoolVar(&verbose, "verbose", false, "print more output")
 	flag.Parse()
 
@@ -335,6 +337,10 @@ func main() {
 
 	colorstring.Printf("\n[green]Finished![default] Processed %d values across %d threads in %s (%f NVPS)\n", totals.TotalValues, threadCount, duration.String(), (float64(totals.TotalValues) / duration.Seconds()))
 
+	// exit code
+	if exitErrorCount {
+		os.Exit(int(totals.UnsupportedValues + totals.ErrorCount))
+	}
 }
 
 func DoOrDie(err error, v ...interface{}) {
