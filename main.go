@@ -35,6 +35,8 @@ const (
 	APP         = "zabbix_agent_bench"
 	APP_VERSION = "0.1.0"
 	APP_AUTHOR  = "Ryan Armstrong <ryan@cavaliercoder.com>"
+
+	ZBX_NOTSUPPORTED = "ZBX_NOTSUPPORTED"
 )
 
 type AgentCheck struct {
@@ -135,13 +137,12 @@ func main() {
 
 				// is this a child prototype item?
 				if indentPattern.MatchString(key) {
-
 					newKey.IsPrototype = true
 
 					// Strip out indentation
 					newKey.Key = indentPattern.ReplaceAllString(newKey.Key, "")
 
-					// Make the parent a Discovery Rule
+					// Make the parent a Discovery Rule if not already
 					if parentKey == nil {
 						parentKey = lastKey
 						parentKey.IsDiscoveryRule = true
@@ -150,43 +151,48 @@ func main() {
 					// Append to parent
 					parentKey.Prototypes = append(parentKey.Prototypes, &newKey)
 				} else {
-					// Have we finished processing a discovery rule and prototypes?
-					if parentKey != nil {
-						val, err := Get(host, parentKey.Key, timeout)
-						if err != nil {
-							DoOrDie(err)
-						}
-
-						data := DiscoveryData{}
-						err = json.Unmarshal([]byte(val), &data)
-						if err != nil {
-							DoOrDie(err, val)
-						}
-
-						// Parse each discovered instance
-						for _, instance := range data.Data {
-
-							// Create prototypes
-							for _, proto := range parentKey.Prototypes {
-
-								// Expand macros
-								newKey := proto.Key
-								for macro, val := range instance {
-									newKey = strings.Replace(newKey, macro, val, -1)
-								}
-
-								// Item discovered item
-								keys = append(keys, &AgentCheck{newKey, false, true, []*AgentCheck{}})
-							}
-						}
-					}
-
 					// This is a normal key
 					parentKey = nil
 					keys = append(keys, &newKey)
 				}
 
 				lastKey = &newKey
+			}
+		}
+
+		// expand discovery item prototypes by doing an actual agent discovery
+		for _, parentKey := range keys {
+			if parentKey.IsDiscoveryRule {
+				// get discovery items to expand prototypes
+				val, err := Get(host, parentKey.Key, timeout)
+				DoOrDie(err)
+
+				if strings.HasPrefix(val, ZBX_NOTSUPPORTED) {
+					Errorf("Discovery item unsupported: %s", parentKey.Key)
+					continue
+				}
+
+				// bind JSON discovery data
+				data := DiscoveryData{}
+				err = json.Unmarshal([]byte(val), &data)
+				DoOrDie(err, val)
+
+				// Parse each discovered instance
+				for _, instance := range data.Data {
+
+					// Create prototypes
+					for _, proto := range parentKey.Prototypes {
+
+						// Expand macros
+						newKey := proto.Key
+						for macro, val := range instance {
+							newKey = strings.Replace(newKey, macro, val, -1)
+						}
+
+						// Item discovered item
+						keys = append(keys, &AgentCheck{newKey, false, true, []*AgentCheck{}})
+					}
+				}
 			}
 		}
 	}
@@ -355,9 +361,13 @@ func main() {
 	}
 }
 
+func Errorf(format string, a ...interface{}) {
+	colorstring.Fprintf(os.Stderr, "[red]Error:[default] %s\n", fmt.Sprintf(format, a...))
+}
+
 func DoOrDie(err error, v ...interface{}) {
 	if err != nil {
-		colorstring.Fprintf(os.Stderr, "[red]Error:[default] %s\n", err.Error())
+		Errorf(err.Error())
 		for _, x := range v {
 			colorstring.Fprintf(os.Stderr, "%#v\n", x)
 		}
