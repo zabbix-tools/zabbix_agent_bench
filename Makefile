@@ -11,8 +11,8 @@ TAR = tar
 
 all: $(APP)
 
-$(APP): main.go zabbix_get.go
-	$(GO) build $(GFLAGS)
+$(APP): main.go zabbix_get.go keyfile.go itemkey.go error.go stats.go
+	$(GO) build $(GFLAGS) -o $(APP)
 
 clean:
 	$(GO) clean

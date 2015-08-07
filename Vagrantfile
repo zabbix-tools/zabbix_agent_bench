@@ -35,7 +35,7 @@ export PATH=\\$PATH:\\$HOME/gocode/bin
 EOL
 
 chown -R vagrant.vagrant /home/vagrant/gocode
-
+go get github.com/mitchellh/colorstring
 go version
 
 # Install Zabbix
