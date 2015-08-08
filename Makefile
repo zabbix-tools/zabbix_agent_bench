@@ -14,6 +14,9 @@ all: $(APP)
 $(APP): main.go zabbix_get.go keyfile.go itemkey.go error.go stats.go
 	$(GO) build $(GFLAGS) -o $(APP)
 
+get-deps:
+	$(GO) get -u github.com/mitchellh/colorstring
+
 clean:
 	$(GO) clean
 	$(RM) -f $(APP) $(TARBALL).tar.gz $(APP)-$(APPVER)-1.$(ARCH).rpm
