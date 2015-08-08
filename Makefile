@@ -1,6 +1,6 @@
 APP = zabbix_agent_bench
 APPVER = 0.2.0
-ARCH = $(shell uname -i)
+ARCH = $(shell uname -m)
 TARBALL = $(APP)-$(APPVER).$(ARCH)
 
 GO = go
