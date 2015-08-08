@@ -48,7 +48,7 @@ func (c *Error) Error() string {
 			buffer.WriteString(" ")
 		}
 
-		buffer.WriteString("\x02ea ")
+		buffer.WriteString("-> ")
 
 		if nerr, ok := next.(*Error); ok {
 			buffer.WriteString(nerr.Message)
