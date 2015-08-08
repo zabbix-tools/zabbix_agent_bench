@@ -61,17 +61,17 @@ var stop = false
 func main() {
 
 	// Configure from command line
-	flag.BoolVar(&version, "version", false, "print application version")
+	flag.BoolVar(&version, "version", false, "print version")
 	flag.StringVar(&host, "host", "localhost", "remote Zabbix agent host")
 	flag.IntVar(&port, "port", 10050, "remote Zabbix agent TCP port")
-	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
-	flag.IntVar(&staggerMsArg, "stagger", 0, "stagger the start of each thread by milliseconds")
+	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each zabbix_get request")
+	flag.IntVar(&staggerMsArg, "offset", 0, "offset each thread start in milliseconds")
 	flag.IntVar(&threadCount, "threads", runtime.NumCPU(), "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
-	flag.IntVar(&iterationLimit, "limit", 0, "maximum test iterations of each key per thread")
+	flag.IntVar(&iterationLimit, "iterations", 0, "maximum test iterations of each key")
 	flag.StringVar(&keyFilePath, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
-	flag.BoolVar(&exitErrorCount, "errorcount", false, "set exit code to the sum of unsupported and failed items")
+	flag.BoolVar(&exitErrorCount, "strict", false, "exit code to include tally of unsupported items")
 	flag.BoolVar(&verbose, "verbose", false, "print more output")
 	flag.BoolVar(&debug, "debug", false, "print program debug messages")
 	flag.Parse()

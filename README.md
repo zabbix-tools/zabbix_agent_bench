@@ -7,43 +7,62 @@ This tool is useful for developing custom Zabbix agent items and quickly
 identifying memory or file handle leaks, concurrency problems such as race
 conditions and other performance issues.
 
-    $ zabbix_agent_bench --help
-    Usage of ./zabbix_agent_bench:
-      -host="localhost": remote Zabbix agent host
-      -key="": benchmark a single agent item key
-      -keys="": read keys from file path
-      -limit=0: maximum test iterations of each key
-      -port=10050: remote Zabbix agent TCP port
-      -stagger=0: stagger the start of each thread by milliseconds
-      -threads=3: number of test threads
-      -timelimit=0: time limit in seconds
-      -timeout=3000: timeout in milliseconds for each Zabbix Get request
-      -verbose=false: print more output
-      -version=false: print application version
+## Usage
+
+  $ zabbix_agent_bench --help
+  Usage of ./zabbix_agent_bench:
+    -debug=false: print program debug messages
+    -host="localhost": remote Zabbix agent host
+    -iterations=0: maximum test iterations of each key
+    -key="": benchmark a single agent item key
+    -keys="": read keys from file path
+    -offset=0: offset each thread start in milliseconds
+    -port=10050: remote Zabbix agent TCP port
+    -strict=false: exit code to include tally of unsupported items
+    -threads=1: number of test threads
+    -timelimit=0: time limit in seconds
+    -timeout=3000: timeout in milliseconds for each zabbix_get request
+    -verbose=false: print more output
+    -version=false: print version
+
+Test a single key until cancelled with `Ctrl-C`:
+
+  $ zabbix_agent_bench -key agent.version
+
+Test a list of keys (including discovery rules and prototypes):
+
+  $ zabbix_agent_bench -keys linux_keys.conf
+
+Simple unit-test style check of a list of keys:
+
+  $ zabbix_agent_bench -keys linux_keys.conf -iterations 1 -strict
 
 
 ## Key files
 
-Create a list of agent item keys to test by providing a text file with one key
-per line to the `-keys` argument. Whitespace and lines prefixed with `#` are
-ignored as comments.
+You can test multiple keys by creating a text file with one key per line. You
+may then pass this file to the `-keys` argument.
 
-For discovery items, you can specify item prototypes immediately following a
-discovery item, simply by prepending the key with a tab or space.
+To create a discovery rule, you may specify item prototypes immediately
+following an item definition, simply by prepending the prototype key with a tab
+or space.
 
 E.g.
 
-    vfs.fs.discovery
-        vfs.fs.size[{#FSNAME},total]
-        vfs.fs.size[{#FSNAME},free]
-        vfs.fs.size[{#FSNAME},used]
-        vfs.fs.size[{#FSNAME},pfree]
-        vfs.fs.size[{#FSNAME},pused]
+  vfs.fs.discovery
+      vfs.fs.size[{#FSNAME},total]
+      vfs.fs.size[{#FSNAME},free]
+      vfs.fs.size[{#FSNAME},used]
+      vfs.fs.size[{#FSNAME},pfree]
+      vfs.fs.size[{#FSNAME},pused]
+
+Whitespace and lines prefixed with `#` are ignored as comments.
 
 
 ## Installation
 
-Pre-compiled binaries are available on [download on SourceForge](https://sourceforge.net/projects/zabbixagentbench/files/).
+Pre-compiled binaries and packages are available for
+[download on SourceForge](https://sourceforge.net/projects/zabbixagentbench/files/).
 
 Alternatively, you can build the project yourself in Go. Once you have a
 working [installation of Go](https://golang.org/doc/install), simply run:
