@@ -4,7 +4,7 @@ ARCH = $(shell uname -m)
 TARBALL = $(APP)-$(APPVER).$(ARCH)
 
 GO = go
-GFLAGS = -x -a -race -v -x
+GFLAGS = -x -a -v -x
 RM = rm -f
 FPM = fpm
 TAR = tar
@@ -17,6 +17,9 @@ $(APP): main.go zabbix_get.go keyfile.go itemkey.go error.go stats.go
 
 get-deps:
 	$(GO) get -u github.com/mitchellh/colorstring
+
+test:
+	$(GO) test -v
 
 install: $(APP)
 	$(INSTALL) $(APP) /usr/local/bin/$(APP)
@@ -34,4 +37,4 @@ clean:
 	$(GO) clean
 	$(RM) -f $(APP) $(TARBALL).tar.gz $(APP)-$(APPVER)-1.$(ARCH).rpm
 
-.PHONY: all get-deps install tar rpm clean
+.PHONY: all get-deps test install tar rpm clean

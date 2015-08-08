@@ -94,7 +94,7 @@ func main() {
 
 	// user specified a single key
 	if key != "" {
-		queuedKeys = append(queuedKeys, &ItemKey{key, false, false, []*ItemKey{}})
+		queuedKeys = append(queuedKeys, NewItemKey(key))
 	}
 
 	// load item keys from text file

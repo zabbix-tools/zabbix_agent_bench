@@ -18,6 +18,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -44,6 +46,22 @@ type DiscoveryResponse struct {
 	Data DiscoveryData
 }
 
+var (
+	envVarPattern = regexp.MustCompile(`\{%.*?\}`)
+	indentPattern = regexp.MustCompile(`^\s+`)
+)
+
+// NewItemKey returns a pointer to a new instance of an ItemKey with
+// environment variables in the key name expanded.
+func NewItemKey(key string) *ItemKey {
+	return &ItemKey{
+		Key:             ParseItemKey(key),
+		IsDiscoveryRule: false,
+		IsPrototype:     false,
+		Prototypes:      make(ItemKeys, 0),
+	}
+}
+
 // LongestKeyName returns the length in characters of the longest key name
 // in an array of keys.
 // Used for formatting output.
@@ -68,6 +86,28 @@ func (c ItemKeys) SortedKeyNames() []string {
 	sort.Strings(keyNames)
 
 	return keyNames
+}
+
+// ParseItemKey subsitutes any variables in a key name for runtime
+// environment variables and trims any whitespace at the beginning of the key.
+//
+// Variables in the key name take the form '{%VARNAME}' and are replaced with
+// the matching environment variable value (e.g. 'VARNAME').
+//
+// Variables with no value set in the runtime environment are replaced with a
+// zero length string.
+func ParseItemKey(key string) string {
+	// Strip out indentation
+	key = indentPattern.ReplaceAllString(key, "")
+
+	// replace environment variables
+	vars := envVarPattern.FindAllString(key, -1)
+	for _, v := range vars {
+		ev := v[2 : len(v)-1]
+		key = strings.Replace(key, v, os.Getenv(ev), -1)
+	}
+
+	return key
 }
 
 // Discover sends a 'get' request to a Zabbix agent and expand the key's
@@ -105,15 +145,18 @@ func (c *ItemKey) Discover(host string, timeout time.Duration) (ItemKeys, error)
 		for _, proto := range c.Prototypes {
 
 			// Expand macros
-			newKey := proto.Key
+			s := proto.Key
 			for macro, val := range instance {
-				newKey = strings.Replace(newKey, macro, val, -1)
+				s = strings.Replace(s, macro, val, -1)
 			}
 
-			dprintf("Added discovered key: %s\n", newKey)
-
 			// Item discovered item
-			keys = append(keys, &ItemKey{newKey, false, true, []*ItemKey{}})
+			n := NewItemKey(s)
+			n.IsPrototype = true
+
+			keys = append(keys, n)
+
+			dprintf("Added discovered key: %s\n", n.Key)
 		}
 	}
 

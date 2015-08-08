@@ -27,10 +27,7 @@ type KeyFile struct {
 	Keys ItemKeys
 }
 
-var (
-	commentPattern = regexp.MustCompile(`^\s*(#.*)?$`)
-	indentPattern  = regexp.MustCompile(`^\s+`)
-)
+var commentPattern = regexp.MustCompile(`^\s*(#.*)?$`)
 
 // NewKeyFile loads Zabbix agent keys from a plain text file
 func NewKeyFile(path string) (*KeyFile, error) {
@@ -60,12 +57,10 @@ func NewKeyFile(path string) (*KeyFile, error) {
 
 		// Ignore blanks lines and comments
 		if !commentPattern.MatchString(line) {
-			newKey := ItemKey{line, false, false, []*ItemKey{}}
+			newKey := NewItemKey(line)
 
 			// is this a child prototype item?
 			if indentPattern.MatchString(line) {
-				// Strip out indentation
-				newKey.Key = indentPattern.ReplaceAllString(newKey.Key, "")
 				dprintf("Added key prototype: %s\n", newKey.Key)
 
 				// Make the parent a Discovery Rule if not already
@@ -76,15 +71,15 @@ func NewKeyFile(path string) (*KeyFile, error) {
 				}
 
 				// Append to parent
-				parentKey.Prototypes = append(parentKey.Prototypes, &newKey)
+				parentKey.Prototypes = append(parentKey.Prototypes, newKey)
 			} else {
 				// This is a normal key
 				dprintf("Added key: %s\n", newKey.Key)
 				parentKey = nil
-				keyfile.Keys = append(keyfile.Keys, &newKey)
+				keyfile.Keys = append(keyfile.Keys, newKey)
 			}
 
-			lastKey = &newKey
+			lastKey = newKey
 		}
 	}
 

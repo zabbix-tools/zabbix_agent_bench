@@ -58,6 +58,31 @@ E.g.
 
 Whitespace and lines prefixed with `#` are ignored as comments.
 
+To substitute key names with runtime environment variables, you can use the
+form `{%VARNAME}` where `VARNAME` is the case-sensitive name of en environment
+variable.
+
+For example, if you set environment variable `TCPPORT` to `22`, then the
+following key file entry:
+
+    net.tcp.listen[{%TCPPORT}}]
+
+will be expanded to:
+
+    net.tcp.listen[22]
+
+This enables a key file to be reused with ease when testing against various
+target environments.
+
+E.g.
+
+    $ TCPPORT=22 zabbix_agent_bench -keys linux_keys.conf
+
+Variables which are not set in the environment are replaced with a zero length
+string. In the example above, if `TCPPORT` was not set, the key would become:
+
+    net.tcp.listen[]
+
 
 ## Installation
 
