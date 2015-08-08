@@ -1,4 +1,4 @@
-# Zabbix Agent Bench
+# Zabbix Agent Bench [![Build Status](https://travis-ci.org/cavaliercoder/zabbix_agent_bench.svg?branch=master)](https://travis-ci.org/cavaliercoder/zabbix_agent_bench) 
 
 A multithreaded Zabbix agent benchmarking tool with support for custom keys and
 discovery item prototypes.
