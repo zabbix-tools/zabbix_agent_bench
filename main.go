@@ -118,8 +118,8 @@ func main() {
 	// start producer thread
 	fmt.Printf("Testing %d keys with %d threads (press Ctrl-C to cancel)...\n", len(queuedKeys), threadCount)
 	HandleSignals()
-	producer := StartProducer(queuedKeys)
 	statsChan := make(chan *ThreadStats)
+	producer := StartProducer(queuedKeys, statsChan)
 
 	// set time limit if set
 	if 0 < timeLimit {
@@ -142,7 +142,7 @@ func main() {
 
 	// Fan in threads to gather stats
 	totals := NewThreadStats()
-	for i := 0; i < threadCount; i++ {
+	for i := 0; i < threadCount+1; i++ {
 		threadStats := <-statsChan
 		totals.Add(threadStats)
 	}
@@ -206,9 +206,10 @@ func HandleSignals() {
 // StartProducer starts a goroutine which iterates through the list of queued
 // agent item check keys and published them sequentially to the returned
 // channel until the runtime limits are reached.
-func StartProducer(keys ItemKeys) <-chan *ItemKey {
+func StartProducer(keys ItemKeys, statsChan chan *ThreadStats) <-chan *ItemKey {
 	c := make(chan *ItemKey)
 	go func() {
+		stats := ThreadStats{}
 		for i := 0; !stop && (iterationLimit <= 0 || i < iterationLimit); i++ {
 			for _, key := range keys {
 				if stop {
@@ -218,9 +219,12 @@ func StartProducer(keys ItemKeys) <-chan *ItemKey {
 				// send key to a consumer
 				c <- key
 			}
+
+			stats.Iterations++
 		}
 
 		close(c)
+		statsChan <- &stats
 	}()
 
 	return c
