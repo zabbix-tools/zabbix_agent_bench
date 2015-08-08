@@ -66,9 +66,9 @@ func main() {
 	flag.IntVar(&port, "port", 10050, "remote Zabbix agent TCP port")
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each Zabbix Get request")
 	flag.IntVar(&staggerMsArg, "stagger", 0, "stagger the start of each thread by milliseconds")
-	flag.IntVar(&threadCount, "threads", 1, "number of test threads")
+	flag.IntVar(&threadCount, "threads", runtime.NumCPU(), "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
-	flag.IntVar(&iterationLimit, "limit", 1, "maximum test iterations of each key per thread")
+	flag.IntVar(&iterationLimit, "limit", 0, "maximum test iterations of each key per thread")
 	flag.StringVar(&keyFilePath, "keys", "", "read keys from file path")
 	flag.StringVar(&key, "key", "", "benchmark a single agent item key")
 	flag.BoolVar(&exitErrorCount, "errorcount", false, "set exit code to the sum of unsupported and failed items")
@@ -116,7 +116,7 @@ func main() {
 	// TODO: deduplicate the key list
 
 	// start producer thread
-	fmt.Printf("Testing %d keys across %d threads...\n", len(queuedKeys), threadCount)
+	fmt.Printf("Testing %d keys with %d threads (press Ctrl-C to cancel)...\n", len(queuedKeys), threadCount)
 	HandleSignals()
 	producer := StartProducer(queuedKeys)
 	statsChan := make(chan *ThreadStats)
@@ -156,6 +156,11 @@ func main() {
 	longestKeyName := queuedKeys.LongestKeyName()
 	for _, key := range keyNames {
 		keyStats := totals.KeyStats[key]
+
+		// escape %'s in key name
+		key = strings.Replace(key, "%", "%%", -1)
+
+		// show stats
 		row := fmt.Sprintf("%-*s :\t%s\t%s\t%s\n", longestKeyName, key, hl(keyStats.Success, "green"), hl(keyStats.NotSupported, "yellow"), hl(keyStats.Error, "red"))
 		colorstring.Printf(row)
 	}
