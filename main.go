@@ -172,6 +172,8 @@ func main() {
 	// exit code
 	if exitErrorCount {
 		os.Exit(int(totals.UnsupportedValues + totals.ErrorCount))
+	} else {
+		os.Exit(int(totals.ErrorCount))
 	}
 }
 
