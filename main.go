@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"sort"
 	"strings"
 	"time"
 )
@@ -36,6 +35,7 @@ const (
 	ZBX_NOTSUPPORTED = "ZBX_NOTSUPPORTED"
 )
 
+// command args
 var (
 	host           string
 	port           int
@@ -51,6 +51,12 @@ var (
 	debug          bool
 	version        bool
 )
+
+// agent get request timeout
+var timeout time.Duration
+
+// flag to signal all threads to stop gracefully
+var stop = false
 
 func main() {
 
@@ -70,7 +76,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "print program debug messages")
 	flag.Parse()
 
-	timeout := time.Duration(timeoutMsArg) * time.Millisecond
+	timeout = time.Duration(timeoutMsArg) * time.Millisecond
 	stagger := time.Duration(staggerMsArg) * time.Millisecond
 	timeLimit := time.Duration(timeLimitArg) * time.Second
 
@@ -107,24 +113,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Capture Ctrl+C SIGINTs
-	stop := false // flag to signal threads to stop
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for {
-			<-c // Wait for signal
+	// TODO: deduplicate the key list
 
-			if stop {
-				// Force exit if user sent SIGINT during cleanup
-				fmt.Printf("Aborting...\n")
-				os.Exit(1)
-			} else {
-				fmt.Printf("Caught SIGINT. Cleaning up...\n")
-				stop = true
-			}
-		}
-	}()
+	// start producer thread
+	fmt.Printf("Testing %d keys across %d threads...\n", len(queuedKeys), threadCount)
+	HandleSignals()
+	producer := StartProducer(queuedKeys)
+	statsChan := make(chan *ThreadStats)
 
 	// set time limit if set
 	if 0 < timeLimit {
@@ -134,102 +129,28 @@ func main() {
 			stop = true
 		}()
 	}
-
-	// go to work
-	fmt.Printf("Testing %d keys across %d threads...\n", len(queuedKeys), threadCount)
 	start := time.Now()
-	statsChan := make(chan *ThreadStats)
-	for i := 0; !stop && i < threadCount; i++ {
 
+	// fan out consumer threads to start work
+	for i := 0; !stop && i < threadCount; i++ {
 		// Stagger thread start
 		time.Sleep(stagger)
 
 		dprintf("Starting thread %d...\n", i+1)
-		go func(i int, stats chan *ThreadStats) {
-			threadStats := NewThreadStats()
-
-			for !stop {
-				// Iterate over each key in the list
-				for _, key := range queuedKeys {
-					if stop {
-						break
-					}
-
-					typ := "item"
-					if key.IsPrototype {
-						typ = "proto"
-					} else if key.IsDiscoveryRule {
-						typ = "disco"
-					}
-
-					keyStats := threadStats.KeyStats[key.Key]
-
-					// Get the value from Zabbix agent
-					val, err := Get(host, key.Key, timeout)
-					if err != nil {
-						threadStats.ErrorCount++
-						keyStats.Error++
-					} else {
-						// Print response
-						if verbose {
-							fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
-						}
-
-						// Tally results
-						threadStats.TotalValues++
-						if strings.HasPrefix(val, ErrorMessage) {
-							threadStats.UnsupportedValues++
-							keyStats.NotSupported++
-						} else {
-							keyStats.Success++
-						}
-					}
-
-					threadStats.KeyStats[key.Key] = keyStats
-				}
-
-				// Increment key list iteration count
-				threadStats.Iterations++
-				if 0 < iterationLimit && threadStats.Iterations >= int64(iterationLimit) {
-					break
-				}
-
-				if stop {
-					break
-				}
-			}
-
-			// Push stats to collector
-			statsChan <- threadStats
-		}(i+1, statsChan)
+		go StartConsumer(producer, statsChan)
 	}
 
-	// Gather stats
+	// Fan in threads to gather stats
 	totals := NewThreadStats()
 	for i := 0; i < threadCount; i++ {
 		threadStats := <-statsChan
-		totals.Iterations += threadStats.Iterations
-		totals.TotalValues += threadStats.TotalValues
-		totals.UnsupportedValues += threadStats.UnsupportedValues
-		totals.ErrorCount += threadStats.ErrorCount
-
-		for key, keyStats := range threadStats.KeyStats {
-			tKeyStats := totals.KeyStats[key]
-			tKeyStats.Success += keyStats.Success
-			tKeyStats.NotSupported += keyStats.NotSupported
-			tKeyStats.Error += keyStats.Error
-
-			totals.KeyStats[key] = tKeyStats
-		}
+		totals.Add(threadStats)
 	}
+
 	duration := time.Now().Sub(start)
 
 	// Sort the key list
-	keyNames := []string{}
-	for _, key := range queuedKeys {
-		keyNames = append(keyNames, key.Key)
-	}
-	sort.Strings(keyNames)
+	keyNames := queuedKeys.SortedKeyNames()
 
 	// Print results per key
 	longestKeyName := queuedKeys.LongestKeyName()
@@ -254,6 +175,96 @@ func main() {
 	}
 }
 
+// HandleSignals starts a new goroutine to handle signals from the operating
+// system and signal other goroutine to gracefully stop.
+func HandleSignals() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for {
+			<-c // Wait for signal
+
+			if stop {
+				// Force exit if user sent SIGINT during cleanup
+				fmt.Printf("Aborting...\n")
+				os.Exit(1)
+			} else {
+				fmt.Printf("Caught SIGINT. Cleaning up...\n")
+				stop = true
+			}
+		}
+	}()
+}
+
+// StartProducer starts a goroutine which iterates through the list of queued
+// agent item check keys and published them sequentially to the returned
+// channel until the runtime limits are reached.
+func StartProducer(keys ItemKeys) <-chan *ItemKey {
+	c := make(chan *ItemKey)
+	go func() {
+		for i := 0; !stop && (iterationLimit <= 0 || i < iterationLimit); i++ {
+			for _, key := range keys {
+				if stop {
+					break
+				}
+
+				// send key to a consumer
+				c <- key
+			}
+		}
+
+		close(c)
+	}()
+
+	return c
+}
+
+// StartConsumer consumes ItemKeys from a producer channel, queries the Zabbix
+// agent for a response and submits the results to a ThreadStats channel.
+func StartConsumer(producer <-chan *ItemKey, statsChan chan *ThreadStats) {
+	threadStats := NewThreadStats()
+
+	// process items as long the producer produces them
+	for key := range producer {
+		keyStats := threadStats.KeyStats[key.Key]
+
+		// Get the value from Zabbix agent
+		val, err := Get(host, key.Key, timeout)
+
+		// tally stats
+		if err != nil {
+			threadStats.ErrorCount++
+			keyStats.Error++
+		} else {
+			threadStats.TotalValues++
+			if strings.HasPrefix(val, ErrorMessage) {
+				threadStats.UnsupportedValues++
+				keyStats.NotSupported++
+			} else {
+				keyStats.Success++
+			}
+
+			// Print response
+			if verbose {
+				typ := "item"
+				if key.IsPrototype {
+					typ = "proto"
+				} else if key.IsDiscoveryRule {
+					typ = "disco"
+				}
+
+				fmt.Printf("[%s] %s: %s\n", typ, key.Key, val)
+			}
+		}
+
+		threadStats.KeyStats[key.Key] = keyStats
+	}
+
+	// Push stats to collector channel
+	statsChan <- threadStats
+}
+
+// dprintf prints debug output if debug is enabled.
 func dprintf(format string, a ...interface{}) {
 	if debug {
 		fmt.Fprintf(os.Stderr, format, a...)

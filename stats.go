@@ -42,3 +42,23 @@ func NewThreadStats() *ThreadStats {
 		KeyStats: make(map[string]KeyStats, 0),
 	}
 }
+
+// Add adds all stats from the specified ThreadStats struct to this ThreadStats
+// struct
+func (c *ThreadStats) Add(stats *ThreadStats) {
+	c.Iterations += stats.Iterations
+	c.TotalValues += stats.TotalValues
+	c.UnsupportedValues += stats.UnsupportedValues
+	c.ErrorCount += stats.ErrorCount
+
+	// add stats for each key
+	for key, keyStats := range stats.KeyStats {
+		tKeyStats := c.KeyStats[key]
+
+		tKeyStats.Success += keyStats.Success
+		tKeyStats.NotSupported += keyStats.NotSupported
+		tKeyStats.Error += keyStats.Error
+
+		c.KeyStats[key] = tKeyStats
+	}
+}

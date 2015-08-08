@@ -18,6 +18,7 @@ package main
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 	"time"
 )
@@ -55,6 +56,18 @@ func (c ItemKeys) LongestKeyName() int {
 	}
 
 	return longestKeyName
+}
+
+// SortedKeyNames returns the name of all keys in the this key array sorted
+// alphanumerically.
+func (c ItemKeys) SortedKeyNames() []string {
+	keyNames := []string{}
+	for _, key := range c {
+		keyNames = append(keyNames, key.Key)
+	}
+	sort.Strings(keyNames)
+
+	return keyNames
 }
 
 // Discover sends a 'get' request to a Zabbix agent and expand the key's
