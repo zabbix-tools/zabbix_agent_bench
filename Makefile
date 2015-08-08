@@ -4,7 +4,7 @@ ARCH = $(shell uname -i)
 TARBALL = $(APP)-$(APPVER).$(ARCH)
 
 GO = go
-GFLAGS = -x
+GFLAGS = -x -a -race -v -x
 RM = rm -f
 FPM = fpm
 TAR = tar
@@ -16,7 +16,7 @@ $(APP): main.go zabbix_get.go keyfile.go itemkey.go error.go stats.go
 
 clean:
 	$(GO) clean
-	$(RM) -f $(APP).tar.gz
+	$(RM) -f $(APP) $(TARBALL).tar.gz $(APP)-$(APPVER)-1.$(ARCH).rpm
 
 tar: zabbix_agent_bench README.md keys/
 	mkdir $(TARBALL)
