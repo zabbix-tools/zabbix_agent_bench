@@ -29,7 +29,7 @@ import (
 
 const (
 	APP         = "zabbix_agent_bench"
-	APP_VERSION = "0.2.0"
+	APP_VERSION = "0.3.0"
 	APP_AUTHOR  = "Ryan Armstrong <ryan@cavaliercoder.com>"
 
 	ZBX_NOTSUPPORTED = "ZBX_NOTSUPPORTED"
