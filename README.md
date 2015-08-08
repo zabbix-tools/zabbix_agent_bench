@@ -9,33 +9,33 @@ conditions and other performance issues.
 
 ## Usage
 
-  $ zabbix_agent_bench --help
-  Usage of ./zabbix_agent_bench:
-    -debug=false: print program debug messages
-    -host="localhost": remote Zabbix agent host
-    -iterations=0: maximum test iterations of each key
-    -key="": benchmark a single agent item key
-    -keys="": read keys from file path
-    -offset=0: offset each thread start in milliseconds
-    -port=10050: remote Zabbix agent TCP port
-    -strict=false: exit code to include tally of unsupported items
-    -threads=1: number of test threads
-    -timelimit=0: time limit in seconds
-    -timeout=3000: timeout in milliseconds for each zabbix_get request
-    -verbose=false: print more output
-    -version=false: print version
+    $ zabbix_agent_bench --help
+    Usage of ./zabbix_agent_bench:
+      -debug=false: print program debug messages
+      -host="localhost": remote Zabbix agent host
+      -iterations=0: maximum test iterations of each key
+      -key="": benchmark a single agent item key
+      -keys="": read keys from file path
+      -offset=0: offset each thread start in milliseconds
+      -port=10050: remote Zabbix agent TCP port
+      -strict=false: exit code to include tally of unsupported items
+      -threads=1: number of test threads
+      -timelimit=0: time limit in seconds
+      -timeout=3000: timeout in milliseconds for each zabbix_get request
+      -verbose=false: print more output
+      -version=false: print version
 
 Test a single key until cancelled with `Ctrl-C`:
 
-  $ zabbix_agent_bench -key agent.version
+    $ zabbix_agent_bench -key agent.version
 
 Test a list of keys (including discovery rules and prototypes):
 
-  $ zabbix_agent_bench -keys linux_keys.conf
+    $ zabbix_agent_bench -keys linux_keys.conf
 
 Simple unit-test style check of a list of keys:
 
-  $ zabbix_agent_bench -keys linux_keys.conf -iterations 1 -strict
+    $ zabbix_agent_bench -keys linux_keys.conf -iterations 1 -strict
 
 
 ## Key files
@@ -49,12 +49,12 @@ or space.
 
 E.g.
 
-  vfs.fs.discovery
-      vfs.fs.size[{#FSNAME},total]
-      vfs.fs.size[{#FSNAME},free]
-      vfs.fs.size[{#FSNAME},used]
-      vfs.fs.size[{#FSNAME},pfree]
-      vfs.fs.size[{#FSNAME},pused]
+    vfs.fs.discovery
+        vfs.fs.size[{#FSNAME},total]
+        vfs.fs.size[{#FSNAME},free]
+        vfs.fs.size[{#FSNAME},used]
+        vfs.fs.size[{#FSNAME},pfree]
+        vfs.fs.size[{#FSNAME},pused]
 
 Whitespace and lines prefixed with `#` are ignored as comments.
 
