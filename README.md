@@ -43,6 +43,9 @@ Simple unit-test style check of a list of keys:
 You can test multiple keys by creating a text file with one key per line. You
 may then pass this file to the `-keys` argument.
 
+See the [libzbxpgsql](https://github.com/cavaliercoder/libzbxpgsql/blob/master/fixtures/postgresql-9.2.keys)
+project for a substantial key file example.
+
 To create a discovery rule, you may specify item prototypes immediately
 following an item definition, simply by prepending the prototype key with a tab
 or space.
