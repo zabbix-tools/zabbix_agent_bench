@@ -19,10 +19,12 @@ get-deps:
 	$(GO) get -u github.com/mitchellh/colorstring
 
 test:
-	$(GO) test -v
+	$(GO) test -x -v
 
 install: $(APP)
 	$(INSTALL) $(APP) /usr/local/bin/$(APP)
+
+packages: tar deb rpm
 
 tar: $(APP) README.md keys/
 	mkdir $(TARBALL)
@@ -30,11 +32,14 @@ tar: $(APP) README.md keys/
 	$(TAR) -czf $(TARBALL).tar.gz $(TARBALL)/
 	rm -rf $(TARBALL)/
 
+deb: $(APP)
+	$(FPM) -f -s dir -t deb -n $(APP) -v $(APPVER) $(APP)=/usr/bin/$(APP)
+
 rpm: $(APP)
 	$(FPM) -f -s dir -t rpm -n $(APP) -v $(APPVER) $(APP)=/usr/bin/$(APP)
 
 clean:
-	$(GO) clean
-	$(RM) -f $(APP) $(TARBALL).tar.gz $(APP)-$(APPVER)-1.$(ARCH).rpm
+	$(GO) clean -i -x
+	$(RM) -f $(APP) $(TARBALL).tar.gz $(APP)-$(APPVER)-1.$(ARCH).rpm zabbix-agent-bench_$(APPVER)_amd64.deb
 
-.PHONY: all get-deps test install tar rpm clean
+.PHONY: all get-deps test install packages tar deb rpm clean

@@ -37,23 +37,26 @@ const (
 
 // command args
 var (
-	host           string
-	port           int
-	timeoutMsArg   int
-	staggerMsArg   int
-	timeLimitArg   int
-	iterationLimit int
-	threadCount    int
-	keyFilePath    string
-	key            string
-	exitErrorCount bool
-	verbose        bool
 	debug          bool
+	exitErrorCount bool
+	host           string
+	iterationLimit int
+	key            string
+	keyFilePath    string
+	port           int
+	delayMsArg     int
+	staggerMsArg   int
+	threadCount    int
+	timeLimitArg   int
+	timeoutMsArg   int
+	verbose        bool
 	version        bool
 )
 
-// agent get request timeout
-var timeout time.Duration
+var (
+	timeout       time.Duration
+	delayDuration time.Duration
+)
 
 // flag to signal all threads to stop gracefully
 var stop = false
@@ -65,7 +68,8 @@ func main() {
 	flag.StringVar(&host, "host", "localhost", "remote Zabbix agent host")
 	flag.IntVar(&port, "port", 10050, "remote Zabbix agent TCP port")
 	flag.IntVar(&timeoutMsArg, "timeout", 3000, "timeout in milliseconds for each zabbix_get request")
-	flag.IntVar(&staggerMsArg, "offset", 0, "offset each thread start in milliseconds")
+	flag.IntVar(&delayMsArg, "delay", 0, "delay between queries on each thread in milliseconds")
+	flag.IntVar(&staggerMsArg, "offset", 0, "delay start of each thread in milliseconds")
 	flag.IntVar(&threadCount, "threads", runtime.NumCPU(), "number of test threads")
 	flag.IntVar(&timeLimitArg, "timelimit", 0, "time limit in seconds")
 	flag.IntVar(&iterationLimit, "iterations", 0, "maximum test iterations of each key")
@@ -78,6 +82,7 @@ func main() {
 
 	timeout = time.Duration(timeoutMsArg) * time.Millisecond
 	stagger := time.Duration(staggerMsArg) * time.Millisecond
+	delayDuration = time.Duration(delayMsArg) * time.Millisecond
 	timeLimit := time.Duration(timeLimitArg) * time.Second
 
 	// print version and exit
@@ -269,6 +274,11 @@ func StartConsumer(producer <-chan *ItemKey, statsChan chan *ThreadStats) {
 		}
 
 		threadStats.KeyStats[key.Key] = keyStats
+
+		// sleep
+		if delayMsArg > 0 && !stop {
+			time.Sleep(delayDuration)
+		}
 	}
 
 	// Push stats to collector channel

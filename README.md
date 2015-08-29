@@ -95,7 +95,7 @@ Pre-compiled binaries and packages are available for
 Alternatively, you can build the project yourself in Go. Once you have a
 working [installation of Go](https://golang.org/doc/install), simply run:
 
-    go get github.com/cavaliercoder/zabbix_agent_bench
+    $ go get github.com/cavaliercoder/zabbix_agent_bench
 
 
 ## License
