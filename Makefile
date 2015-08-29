@@ -1,5 +1,5 @@
 APP = zabbix_agent_bench
-APPVER = 0.3.0
+APPVER = 0.4.0
 ARCH = $(shell uname -m)
 TARBALL = $(APP)-$(APPVER).$(ARCH)
 
