@@ -11,19 +11,34 @@ conditions and other performance issues.
 
     $ zabbix_agent_bench --help
     Usage of ./zabbix_agent_bench:
-      -debug=false: print program debug messages
-      -host="localhost": remote Zabbix agent host
-      -iterations=0: maximum test iterations of each key
-      -key="": benchmark a single agent item key
-      -keys="": read keys from file path
-      -offset=0: offset each thread start in milliseconds
-      -port=10050: remote Zabbix agent TCP port
-      -strict=false: exit code to include tally of unsupported items
-      -threads=1: number of test threads
-      -timelimit=0: time limit in seconds
-      -timeout=3000: timeout in milliseconds for each zabbix_get request
-      -verbose=false: print more output
-      -version=false: print version
+      -debug
+          print program debug messages
+      -delay int
+          delay between queries on each thread in milliseconds
+      -host string
+          remote Zabbix agent host (default "localhost")
+      -iterations int
+          maximum test iterations of each key
+      -key string
+          benchmark a single agent item key
+      -keys string
+          read keys from file path
+      -offset int
+          delay start of each thread in milliseconds
+      -port int
+          remote Zabbix agent TCP port (default 10050)
+      -strict
+          exit code to include tally of unsupported items
+      -threads int
+          number of test threads (default 4)
+      -timelimit int
+          time limit in seconds
+      -timeout int
+          timeout in milliseconds for each zabbix_get request (default 3000)
+      -verbose
+          print more output
+      -version
+          print version
 
 Test a single key until cancelled with `Ctrl-C`:
 
