@@ -42,4 +42,8 @@ clean:
 	$(GO) clean -i -x
 	$(RM) -f $(APP) $(TARBALL).tar.gz $(APP)-$(APPVER)-1.$(ARCH).rpm zabbix-agent-bench_$(APPVER)_amd64.deb
 
-.PHONY: all get-deps test install packages tar deb rpm clean
+docker-run:
+	docker run -it --rm -v $(PWD):/go/src/github.com/cavaliercoder/zabbix_agent_bench -w /go/src/github.com/cavaliercoder/zabbix_agent_bench golang
+
+.PHONY: all get-deps test install packages tar deb rpm clean docker-run
+
