@@ -147,6 +147,7 @@ func (c *ItemKey) Discover(host string, timeout time.Duration) (ItemKeys, error)
 			// Expand macros
 			s := proto.Key
 			for macro, val := range instance {
+				dprintf("Substituting macro '%s' with value '%s'\n", macro, val)
 				s = strings.Replace(s, macro, val, -1)
 			}
 
